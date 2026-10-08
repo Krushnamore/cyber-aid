@@ -28,7 +28,7 @@ const h = (fn: (req: Request, res: Response) => Promise<unknown> | unknown) => (
 api.get('/health', h(async (_req, res) => {
   let db = false, error: string | undefined;
   if (dbConfigured()) { try { await initDb(); db = true; } catch (e) { error = (e as Error).message; } } else error = 'DATABASE_URL not set';
-  res.json({ ok: db, db, error, time: new Date().toISOString(), llm: llmProvider(), email: !!process.env['RESEND_API_KEY'] });
+  res.json({ ok: db, db, error, time: new Date().toISOString(), llm: llmProvider(), email: !!(process.env['BREVO_API_KEY'] || process.env['RESEND_API_KEY']) });
 }));
 api.get('/ml/models', (_req, res) => res.json({ models: [textModelCard(), urlModelCard()] }));
 
@@ -68,7 +68,7 @@ api.post('/scan/email-batch', rateLimit(10), h(async (req, res) => {
   if (!list.length) { res.status(400).json({ error: 'emails[] required' }); return; }
   const items = [];
   for (const e of list) {
-    const r = await analyzeEmail({ id: str(e.id, 100), raw: str(e.raw, 400_000) || undefined, headers: cleanHeaders(e.headers), body: str(e.body, 100_000), snippet: str(e.snippet, 2000), from: str(e.from, 500), subject: str(e.subject, 1000) }, { deep: false, userId: userOf(res)?.id ?? null });
+    const r = await analyzeEmail({ id: str(e.id, 100), raw: str(e.raw, 400_000) || undefined, headers: cleanHeaders(e.headers), body: str(e.body, 100_000), snippet: str(e.snippet, 2000), from: str(e.from, 500) || undefined, subject: str(e.subject, 1000) || undefined }, { deep: false, userId: userOf(res)?.id ?? null });
     items.push(toBatchItem(str(e.id, 100) || r.caseId, r, str(e.snippet, 300)));
   }
   res.json({ items });

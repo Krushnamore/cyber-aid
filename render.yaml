@@ -3,7 +3,7 @@
 # (Aiven, TiDB Cloud, Railway, PlanetScale-compatible, your own VPS) or run the optional private service below.
 services:
   - type: web
-    name: cyberaid
+    name: cyber-aid-backend
     runtime: node
     plan: free
     buildCommand: npm install --legacy-peer-deps && npm run build
@@ -13,6 +13,7 @@ services:
     envVars:
       - { key: NODE_VERSION, value: "22" }
       - { key: NODE_ENV, value: production }
+      - { key: NG_ALLOWED_HOSTS, value: cyber-aid-backend.onrender.com }   # Angular SSR host allow-list
       - { key: DATABASE_URL, sync: false }        # mysql://user:password@host:3306/cyberaid
       - { key: MYSQL_SSL, value: "true" }          # most hosted MySQL requires TLS; set "false" for a private Render service
       - key: JWT_SECRET                            # signs login tokens; Render generates a strong random value once

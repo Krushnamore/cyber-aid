@@ -28,6 +28,11 @@ function b64url(data: string): string {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
+function decodeEntities(s: string): string {
+  return s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n))).replace(/&quot;/g, '"').replace(/&#x27;|&apos;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
 function extractBody(part: GmailPart | undefined): string {
   if (!part) return '';
   const plain: string[] = [], html: string[] = [];
@@ -39,7 +44,7 @@ function extractBody(part: GmailPart | undefined): string {
   walk(part);
   if (plain.length) return plain.join('\n').slice(0, 20000);
   // keep href targets: they are what the URL model needs
-  return html.join('\n').replace(/<a [^>]*href="([^"]+)"[^>]*>/gi, ' $1 ').replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').slice(0, 20000);
+  return html.join('\n').replace(/<a [^>]*href="([^"]+)"[^>]*>/gi, ' $1 ').replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[#\w]+;/g, (m) => decodeEntities(m)).slice(0, 20000);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -91,7 +96,7 @@ export class GmailService {
         return r.ok ? ((await r.json()) as GmailMessage) : null;
       }));
       const list = msgs.filter((m): m is GmailMessage => !!m).map((m) => ({
-        id: m.id, headers: m.payload?.headers ?? [], body: extractBody(m.payload), snippet: m.snippet ?? '',
+        id: m.id, headers: m.payload?.headers ?? [], body: extractBody(m.payload), snippet: decodeEntities(m.snippet ?? ''),
       }));
       await this.analyse(list);
       this.source.set('gmail');

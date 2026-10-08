@@ -21,10 +21,32 @@ export async function sendOtpEmail(to: string, code: string, purpose: 'verify_em
 <p style="font-size:32px;letter-spacing:8px;font-weight:700;text-align:center;background:#f1f5f9;padding:16px;border-radius:8px;color:#0f172a">${esc(code)}</p>
 <p style="color:#64748b;font-size:13px">Expires in ${ttlMinutes} minutes. CyberAid will never ask you for this code on a call or message. If you did not request it, ignore this e-mail.</p></div>`;
 
+  // ---- Free option without a domain: Brevo (300 e-mails/day). The sender e-mail only needs to be verified once in Brevo.
+  const brevoKey = process.env['BREVO_API_KEY'];
+  if (brevoKey) {
+    const senderEmail = process.env['BREVO_FROM_EMAIL'];
+    if (!senderEmail) throw new MailError('E-mail service is not configured (BREVO_FROM_EMAIL missing).', 503);
+    let r: Response;
+    try {
+      r = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': brevoKey, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ sender: { name: process.env['BREVO_FROM_NAME'] || 'CyberAid', email: senderEmail }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch { throw new MailError('Could not reach the e-mail service. Try again shortly.'); }
+    if (!r.ok) {
+      const b = (await r.json().catch(() => null)) as { message?: string } | null;
+      console.warn('[mailer] Brevo error', r.status, b?.message);
+      throw new MailError(`E-mail could not be sent: ${b?.message ?? 'check BREVO_API_KEY and that the sender e-mail is verified in Brevo'}`);
+    }
+    return { delivered: true };
+  }
+
   const key = process.env['RESEND_API_KEY'];
   if (!key) {
-    if (process.env['NODE_ENV'] === 'production' && process.env['OTP_DEV_ECHO'] !== 'true') throw new MailError('E-mail service is not configured (RESEND_API_KEY missing).', 503);
-    console.log(`[mailer] RESEND_API_KEY not set: OTP for ${to} (${purpose}) is ${code}`);
+    if (process.env['NODE_ENV'] === 'production' && process.env['OTP_DEV_ECHO'] !== 'true') throw new MailError('E-mail service is not configured (BREVO_API_KEY or RESEND_API_KEY missing).', 503);
+    console.log(`[mailer] no e-mail key set: OTP for ${to} (${purpose}) is ${code}`);
     return { delivered: false, devCode: process.env['OTP_DEV_ECHO'] === 'true' ? code : undefined };
   }
   let res: Response;
