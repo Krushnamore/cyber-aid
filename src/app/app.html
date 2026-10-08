@@ -1,0 +1,11 @@
+<div class="flex min-h-screen flex-col bg-background text-foreground selection:bg-shield/20 selection:text-foreground">
+  @if (authService.isLoggedIn()) {
+    <app-navbar />
+  }
+  <main class="flex-1">
+    <router-outlet />
+  </main>
+  @if (authService.isLoggedIn()) {
+    <app-footer />
+  }
+</div>

@@ -1,0 +1,30 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: cyberaid_test
+          MYSQL_USER: cyber
+          MYSQL_PASSWORD: cyberpass
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -prootpass" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      TEST_DATABASE_URL: mysql://cyber:cyberpass@127.0.0.1:3306/cyberaid_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --legacy-peer-deps
+      - name: ML parity, detection pipeline, auth/OTP/MySQL API tests, LLM integration tests
+        run: npm run test:ml
+      - name: Production build
+        run: npm run build
+  # Render redeploys automatically from main when Auto-Deploy is on (see render.yaml).

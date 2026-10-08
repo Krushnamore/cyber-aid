@@ -1,0 +1,38 @@
+# Render Blueprint: one Node web service serves the Angular SSR app + the REST API.
+# Render has no managed MySQL, so point DATABASE_URL at any MySQL 8 / MariaDB host
+# (Aiven, TiDB Cloud, Railway, PlanetScale-compatible, your own VPS) or run the optional private service below.
+services:
+  - type: web
+    name: cyberaid
+    runtime: node
+    plan: starter
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: NODE_ENV, value: production }
+      - { key: DATABASE_URL, sync: false }        # mysql://user:password@host:3306/cyberaid
+      - { key: MYSQL_SSL, value: "true" }          # most hosted MySQL requires TLS; set "false" for a private Render service
+      - key: JWT_SECRET                            # signs login tokens; Render generates a strong random value once
+        generateValue: true
+      - { key: RESEND_API_KEY, sync: false }       # https://resend.com/api-keys
+      - { key: RESEND_FROM, sync: false }          # e.g. "CyberAid <no-reply@yourdomain.com>" (domain verified in Resend)
+      - { key: ALLOW_DEMO_AUTH, value: "false" }
+      - { key: FIREBASE_PROJECT_ID, value: gen-lang-client-0477356472 }
+      - { key: GROK_API_KEY, sync: false }         # optional: Groq (gsk_...) or xAI (xai-...)
+
+  # --- Optional: MySQL as a private service on Render (needs a paid plan + disk) -----------------
+  # - type: pserv
+  #   name: cyberaid-mysql
+  #   runtime: image
+  #   image: { url: docker.io/library/mysql:8 }
+  #   plan: starter
+  #   disk: { name: mysql-data, mountPath: /var/lib/mysql, sizeGB: 5 }
+  #   envVars:
+  #     - { key: MYSQL_DATABASE, value: cyberaid }
+  #     - { key: MYSQL_USER, value: cyber }
+  #     - { key: MYSQL_PASSWORD, generateValue: true }
+  #     - { key: MYSQL_ROOT_PASSWORD, generateValue: true }
+  # then set DATABASE_URL=mysql://cyber:<MYSQL_PASSWORD>@cyberaid-mysql:3306/cyberaid and MYSQL_SSL=false

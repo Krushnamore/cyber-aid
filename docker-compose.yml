@@ -1,0 +1,19 @@
+# Local MySQL for development:  docker compose up -d   ->  DATABASE_URL=mysql://cyber:cyberpass@127.0.0.1:3306/cyberaid
+services:
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: cyberaid
+      MYSQL_USER: cyber
+      MYSQL_PASSWORD: cyberpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    ports: ["3306:3306"]
+    volumes: [mysql-data:/var/lib/mysql]
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-prootpass"]
+      interval: 5s
+      retries: 20
+volumes:
+  mysql-data:
